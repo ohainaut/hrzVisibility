@@ -5,11 +5,9 @@
 #  Visibility.py -f FILEroot -o OBJECT    -s START -e END
 #  Visibility.py -f plot    -o "2024 FS5" -s 2024-01-01 -e 2024-12-31
 #
-# Output: FILEroot.pdf, with the plot
+# Output: FILEroot.pdf, with the plot.
 #
-#
-#.version 2019-01-25T17:19:11 Fri
-#.history
+# O.Hainaut - ohainaut@eso.org - 2019-01-25 first Py version from original SMongo
 #
 import matplotlib
 matplotlib.use('Agg')  # to avoid Xdisplay issues in remote
@@ -22,7 +20,6 @@ from astropy.io import ascii
 from astropy.time import Time
 from astropy.coordinates import Angle
 import astropy.units as u
-
 from astroquery.jplhorizons import Horizons
 
 
@@ -156,7 +153,7 @@ def doXticks():
 #------------------------------------------------------------------------------
 
 parser = argparse.ArgumentParser(description='Generate a visibility plot for a solar system object')
-parser.add_argument('-f','--outFile',
+parser.add_argument('-f','--outFile', default="HRZ",
                         help='Root of the output file (no extension)')
 parser.add_argument('-o','--object',
                         help='''Designation of the object;
@@ -198,10 +195,8 @@ else:
 
 # READ DATA
 ephall = Horizons( id=comet, location=500, epochs=epochs ).ephemerides()
-print('Ephemerides in')
+print(f'Ephemerides in from Horizon; {len(ephall)} lines for {ephall["targetname"][0]}')
 
-# absolute mag:
-#TBD
 
 
 # coordinates of the sun and antisun
@@ -625,5 +620,5 @@ _ = ax1.grid(axis='x',color='k',linewidth=0.1,alpha=0.1,linestyle='-', visible=T
 #=CLOSE
 
 fig.subplots_adjust(hspace=0, wspace=0)
-plt.savefig(my_dir+"/"+my_file+".pdf")
+plt.savefig(my_dir+my_file+".pdf")
 print( "V: output plot in "+my_dir+"/"+my_file+".pdf")
