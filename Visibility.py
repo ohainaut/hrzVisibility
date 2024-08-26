@@ -221,9 +221,14 @@ monthlabel =  np.arange(0,500) %12 +1
 #ephall['magRaw']  = ephall['M1'] + 5*np.log10(ephall['r']*ephall['delta'])
 #ephall['magPh']   = ephall['magRaw']  + alphabeta*ephall['alpha']
 
-ephall['magPh'] = ephall['V']
-ephall['magRaw'] = ephall['V'] - alphabeta*ephall['alpha']
 
+if 'V' in ephall.columns:
+    ephall['magPh'] = ephall['V']
+elif 'Nmag' in ephall.columns:
+    ephall['magPh'] = ephall['Nmag']
+else:
+    ephall['magPh'] = 20. + 5.*np.log10( ephall['delta'] *  ephall['r'] )
+ephall['magRaw'] = ephall['magPh'] - alphabeta*ephall['alpha']
 
 plt.rc('grid', linestyle="-", color='black')
 
@@ -252,7 +257,7 @@ ithisplot = 0
 #=PLOT 1=============== r, Delta, error, active, not active
 ax1 = axAll[ithisplot]
 ax1.cla()
-ax1.set_title(comet, loc='left', fontsize=15)
+ax1.set_title(f'{comet} {ephall["targetname"][0]}', loc='left', fontsize=15)
 ax1.set_title(cystart+' - '+cyend, loc='right')
 
 ax1.set_yticks(np.arange(0.,100.,5.))
@@ -620,5 +625,5 @@ _ = ax1.grid(axis='x',color='k',linewidth=0.1,alpha=0.1,linestyle='-', visible=T
 #=CLOSE
 
 fig.subplots_adjust(hspace=0, wspace=0)
-plt.savefig(my_dir+my_file+".pdf")
+plt.savefig(my_file+".pdf")
 print( "V: output plot in "+my_dir+"/"+my_file+".pdf")
