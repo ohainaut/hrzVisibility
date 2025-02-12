@@ -118,7 +118,7 @@ jd0 =  ephall["intMJD"][0]
 
 # overall qualification of the moon, from 0 to 10k.
 # myMoon<1000 is acceptable
-ephall['myMoon'] = ((ephall["lunar_presence"] != "") * (100.-ephall["lunar_elong"]) * ephall["lunar_illum"]).astype(int)
+ephall['myMoon'] = ((ephall["lunar_presence"] != "") * (180.-ephall["lunar_elong"])/1.8 * ephall["lunar_illum"]).astype(int)
 
 
 print(f'DateTime     \tmag \t"/h \tSg "'+
@@ -188,6 +188,9 @@ for il in np.arange(len(ephall)):
             telTtot = (pointing + nDit * ( readOut + dit )) / 60. # min
             snrTot = np.sqrt(expTtot / expTs10)*10.
 
+
+            ###print(ephMyJD["datetime_str", "lunar_elong", "lunar_illum", "myMoon"])
+
             print(f'{l0["datetime_str"][:11]} \t{mag:.1f} \t{speed:.1f} \t{seeing} '+
                   f'\t{ditMax:.1f} \t{dit} \t{nDit} \t{expTtot} '+
                   f'\t{telTtot:.2f} \t{snrDit:.1f} \t{snrTot:.1f} \t{step:.1f} '+
@@ -197,9 +200,9 @@ for il in np.arange(len(ephall)):
             if len(ephMyJD) == 0:
                 print('\t-NO-')
             else:
-                print(f'\t{l0["lunar_illum"]:.0f}@{l0["lunar_elong"]:.0f}d',
+                print(f'\t{l0["lunar_illum"]/100:.2f}@{l0["lunar_elong"]:.0f}d',
                       f'\t{(ephMyJD["datetime_jd"][-1] - ephMyJD["datetime_jd"][0])*24.:.1f}h',
-                      f' ({ephMyJD["datetime_str"][0][9:17]}-{ephMyJD["datetime_str"][-1][12:17]})')
+                      f' ({ephMyJD["datetime_str"][0][9:17]}-{ephMyJD["datetime_str"][-1][12:17]})'  )
 
 
 
