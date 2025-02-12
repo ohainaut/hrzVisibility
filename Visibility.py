@@ -14,7 +14,7 @@ matplotlib.use('Agg')  # to avoid Xdisplay issues in remote
 import matplotlib.pyplot as plt
 import numpy as np
 import argparse
-
+import numpy as np
 
 from astropy.io import ascii
 from astropy.time import Time
@@ -65,12 +65,8 @@ def computeObs():
     RAngle = Angle( ephall['RA'] )
 
     HAmin = (RAngle -blackRA - T).wrap_at(180.*u.deg)
-    #HAmin = (Tcos >=  0.999) *(-90.)*u.deg  + (Tcos <  0.999)*  HAmin
-    #HAmin = (Tcos <= -0.999) *  90. *u.deg  + (Tcos > -0.999)*  HAmin
-
     HAmax = (RAngle -blackRA + T).wrap_at(180.*u.deg)
-    #HAmax = (Tcos >=  0.999) *(-90.)*u.deg  + (Tcos <  0.999)*  HAmax
-    #HAmax = (Tcos <= -0.999) *  90. *u.deg  + (Tcos > -0.999)*  HAmax
+
 
 
 
@@ -88,8 +84,6 @@ def computeObs():
 
     # length of the night
     nightLength = 2*TSun
-    #dbg# print( nightLength.deg/15. ## OK)
-    #dbg# plt.plot(ephall['datetime_jd'],nightLength.deg/15.,label="O.Plane", c=mycol) ## OK
 
 
 
@@ -260,10 +254,17 @@ ax1.cla()
 ax1.set_title(f'{comet} {ephall["targetname"][0]}', loc='left', fontsize=15)
 ax1.set_title(cystart+' - '+cyend, loc='right')
 
-ax1.set_yticks(np.arange(0.,100.,5.))
+#ax1.set_yticks(np.arange(0.,100.,5.))
 ax1.set_yticks(np.arange(0.,100.,1.),  minor=True)
 
-
+ymin1 = min(ephall['r'])
+ymax1 = max(ephall['r'])
+ymin2 = min(ephall['delta'])
+ymax2 = max(ephall['delta'])
+ymin = min([ymin1, ymin2])*0.95
+ymax = max([ymax1, ymax2])*1.05
+print(ymin1, ymin2, ymin)
+print(ymax1, ymax2, ymax)
 
 mycol = mycol1
 active = (np.cos( np.radians( ephall['true_anom']) )   >0.)*(ephall['r'] < 3.)
@@ -280,11 +281,13 @@ ax1.plot(ephall['datetime_jd'],ephall['r'], c=mycol)
 
 ax1.tick_params('y', colors=mycol)
 ax1.set_xticks(tickyears.jd)
-_ = ax1.set_xticklabels([])
+ax1.set_xticklabels([])
 
 
 ax1.set_ylabel("r (black)\n$\Delta$ (blue) [AU]",color=mycol)
 ax1.tick_params('y', colors=mycol)
+ax1.set_ylim(ymin,ymax)
+
 
 resolved = (ephall['delta']< Deltamax)  #(ephall['delta'] <= Deltamax )
 Dresolved =ephall['delta']* resolved
@@ -292,12 +295,11 @@ Dresolved =ephall['delta']* resolved
 ax1.plot(ephall['datetime_jd'],ephall['delta'], c=mycol2)
 ax1.fill_between(ephall['datetime_jd'],Dresolved, 0, lw=0, facecolor='r', alpha=0.5)
 
-rmin = min(ephall['delta'])
-rmax = max(ephall['delta'])
-wmin = rmin -0.05*(rmax - rmin)
-wmax = rmax +0.40*(rmax - rmin)
-ax1.set_ylim(wmin, wmax)
+
 ax1.grid(axis='both',color='k',linewidth=0.1,alpha=0.1,linestyle='-')
+
+
+
 
 ax2 = ax1.twinx()
 ax2.set_yscale('log')
@@ -315,22 +317,23 @@ ithisplot += 1
 ax1 = axAll[ithisplot]
 ax1.cla()
 
+#-RA
 mycol = mycol1
 ax1.plot(ephall['datetime_jd'],ephall['RA']/15., c=mycol)
 ax1.set_ylabel("R.A.",color=mycol)
 ax1.tick_params('y', colors=mycol)
-_ = ax1.set_yticks(np.arange(0.,24.,6.))
-_ = ax1.set_yticks(np.arange(0.,25.,1.),  minor=True)
+ax1.set_yticks(np.arange(0.,24.,6.))
+ax1.set_yticks(np.arange(0.,25.,1.),  minor=True)
 ax1.set_ylim(-0.5,24.5)
 
 doXticks()
 
-
+# Dec
 
 mycol = mycol2
 ax2 = ax1.twinx()
-_ = ax2.set_yticks(np.arange(-90.,91.,30.))
-_ = ax2.set_yticks(np.arange(-90.,91.,10.),  minor=True)
+#ax2.set_yticks(np.arange(-90.,91.,30.))
+ax2.set_yticks(np.arange(-90.,91.,10.),  minor=True)
 ax2.plot(ephall['datetime_jd'],ephall['DEC'], c=mycol)
 ax2.plot(ephall['datetime_jd'],ephall['DEC']*0.,  c=mycol, linewidth=0.2)
 ax2.set_ylabel("Dec",color=mycol)
@@ -441,7 +444,7 @@ ax1.cla()
 mycol = mycol1
 
 #- groundbased limit
-maglim = np.array([22.5, 24., 26.])
+maglim = np.array([22.5, 24., 26.5])
 if ELTflag:
     maglim += 3.5
 

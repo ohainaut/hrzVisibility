@@ -1,6 +1,9 @@
 #!/usr/bin/python3
 # makeHrz_vlt.py
 
+# generate an ephemerides in VLT format,
+# and a summary table
+
 import numpy as np
 import argparse
 from datetime import datetime
@@ -11,6 +14,8 @@ from astroquery.jplhorizons import Horizons
 
 
 def reqSeeing(mag):
+    '''return a seeing value [arcsec] appropriate to observe the input magnitude'''
+    
     if mag > 26.:
         return 0.6
     elif mag > 25.:
@@ -23,8 +28,11 @@ def reqSeeing(mag):
         return 1.4
 
 expTmag25s10 = 240. #s for mag=25 snr=10
-pointing = 375. #s
-readOut = 23. #s
+pointing = 375. #s, pointing overhead
+readOut  = 23.  #s, readout overhead per image
+
+elMin = 25. # deg, minimum elevation
+
 
 #------------------------------------------------------------------------------
 
@@ -100,24 +108,33 @@ de0 = -99999.
 ddmax = -99
 ddcount = 0
 el0 = 9999.
-jd0 =  int( ephall["datetime_jd"][0] ) 
 fresh = True # this day has not meas yet
 l0 = ephall[0]
 
-print(f'DateTime          \tmag \t"/h \tSg "'+
-                  f'\ttMx s \tDIT s \tNDIT \texpTs \t'+
-                  f'Tel m \tsnr1 \tsnrT \tstep " '+
-                  f'\tGlxLt \tSMAA"@Th \tRA+Dec')
+
+# to select same night, work with pseudo MJD centred on Paranal Noon
+ephall['intMJD'] = (ephall['datetime_jd']-2400000.25).astype(int) # corresponding to noon PaO
+jd0 =  ephall["intMJD"][0] 
+
+# overall qualification of the moon, from 0 to 10k.
+# myMoon<1000 is acceptable
+ephall['myMoon'] = ((ephall["lunar_presence"] != "") * (100.-ephall["lunar_elong"]) * ephall["lunar_illum"]).astype(int)
+
+
+print(f'DateTime     \tmag \t"/h \tSg "'+
+                  '\ttMx s \tDIT s \tNDIT \texpTs \t'+
+                  'Tel m \tsnr1 \tsnrT \tstep " '+
+                  '\tGlxLt \tSMAA"@Th \tRA+Dec   '+
+                  '\tFLI@Elon \tObs[h] [FromTo]')
+
 
 
 for il in np.arange(len(ephall)):
 
     l = ephall[il]
-
     if l["EL"] > 27. and l["solar_presence"] != '*': #filter high airmasses and day
 
         # some conversions
-
         t = Time(l["datetime_jd"], format='jd').isot
         ra = Angle(l["RA"], 'degree').hms
         if  f'{ra[2]:09.6f}' == "60.000000": # catch rounding too close
@@ -133,14 +150,12 @@ for il in np.arange(len(ephall)):
 
 
         # write VLT ephem
-
         f.write(f'INS.EPHEM.RECORD          "{t}, {l["datetime_jd"]:17.9f}, '+
                 f'{int(ra[0]):02d} {int(ra[1]):02d} {ra[2]:09.6f}, '+
                 f'{des}{int(de[1]):02d} {int(de[2]):02d} {de[3]:08.5f},'+
                 f' {dra:+9.6f}, {dde:+9.6f}, , "\n')
         
         # check steps
-
         step = np.sqrt(  (l["RA"]-ra0)**2 + (l["DEC"] - de0)**2 )*3600.
         if step < 4e4 and step > 30.:
             ddcount += 1
@@ -148,12 +163,15 @@ for il in np.arange(len(ephall)):
         
         # info for OB
 
-        if int( l["datetime_jd"]) != jd0:
-            fresh = True # new night
-
-        if fresh and  (  l['EL'] < el0     or   int( l["datetime_jd"]) != jd0)  : # close to transit, new day
-            jd0 = int( l["datetime_jd"]) 
+        if  l["intMJD"] != jd0  : #  new day
+            jd0 = l["intMJD"]
             fresh = False
+
+            # get all the lines for the same Night
+            ephMyJD = ephall[(ephall["EL"] > elMin ) & 
+                             (ephall["intMJD"] == jd0 ) &   
+                             (ephall['solar_presence'] != "N" ) &  (ephall['solar_presence'] != "C" )  &  (ephall['solar_presence'] != "*" )  &
+                             (ephall["myMoon"] < 1000 )]
 
             mag = l0["V"]
             speed = np.sqrt( l0["RA_rate"]**2  + l0["DEC_rate"]**2) # arcsec/h
@@ -170,11 +188,20 @@ for il in np.arange(len(ephall)):
             telTtot = (pointing + nDit * ( readOut + dit )) / 60. # min
             snrTot = np.sqrt(expTtot / expTs10)*10.
 
-            print(f'{l0["datetime_str"]} \t{mag:.1f} \t{speed:.1f} \t{seeing} '+
+            print(f'{l0["datetime_str"][:11]} \t{mag:.1f} \t{speed:.1f} \t{seeing} '+
                   f'\t{ditMax:.1f} \t{dit} \t{nDit} \t{expTtot} '+
                   f'\t{telTtot:.2f} \t{snrDit:.1f} \t{snrTot:.1f} \t{step:.1f} '+
                   f'\t{l0["GlxLat"]:.1f} \t{l0["SMAA_3sigma"]:.1f}"@{l0["Theta_3sigma"]:.1f}'+
-                  f'\t{int(ra[0]):02d}:{int(ra[1]):02d}{des}{int(de[1]):02d} ')
+                  f'\t{int(ra[0]):02d}:{int(ra[1]):02d}{des}{int(de[1]):02d} ', 
+                  end=" ")
+            if len(ephMyJD) == 0:
+                print('\t-NO-')
+            else:
+                print(f'\t{l0["lunar_illum"]:.0f}@{l0["lunar_elong"]:.0f}d',
+                      f'\t{(ephMyJD["datetime_jd"][-1] - ephMyJD["datetime_jd"][0])*24.:.1f}h',
+                      f' ({ephMyJD["datetime_str"][0][9:17]}-{ephMyJD["datetime_str"][-1][12:17]})')
+
+
 
         l0 = l # preserve valid line for print if needed.
 
