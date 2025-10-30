@@ -89,10 +89,6 @@ def computeObs(ephall, LatOBSr, blackRA, blackDec):
     RAngle = Angle( ephall['RA'] )
     HAmin = (RAngle - T).wrap_at(180.*u.deg)
     HAmax = (RAngle + T).wrap_at(180.*u.deg)
-    print('RANGLE',RAngle[0].degree)
-    print('BLACK',blackRA[0].degree)
-    print('T',T[0].degree)
-    print('-----')
 
 
     # when the sun reaches -12deg = antisun reaches +12 = zd 78
@@ -261,19 +257,32 @@ def plotIt(ephall, cystart,cyend, Deltamax=0, absMag=15.):
     active = (np.cos( np.radians( ephall['true_anom']) )   >0.)*(ephall['r'] < 3.)
 
     ractive = ephall['r']*active
-    ax1.fill_between(ephall['datetime_jd'],ractive, 0, facecolor='c', alpha=0.25, label="Active")
+    try:
+        ax1.fill_between(ephall['datetime_jd'],ractive, 0, facecolor='c', alpha=0.25, label="Active")
+    except Exception as e:
+        print(f"Error filling active region: {e}")
     rinactive = ephall['r']*(1-active)
-    ax1.fill_between(ephall['datetime_jd'],rinactive, 0, facecolor='r', alpha=0.025, label="Not active")
-    ax1.legend(loc=1, ncol=3, framealpha=0.2)
+    try:
+        ax1.fill_between(ephall['datetime_jd'],rinactive, 0, facecolor='r', alpha=0.025, label="Not active")
+    except Exception as e:
+        print(f"Error filling inactive region: {e}")
+    try:
+        ax1.legend(loc=1, ncol=3, framealpha=0.2)
+    except Exception as e:
+        print(f"Error adding legend: {e}")
+
+        
     ax1.plot(ephall['datetime_jd'],ephall['r'], c=mycol)
 
 
 
     resolved = (ephall['delta']< Deltamax)  #(ephall['delta'] <= Deltamax )
     Dresolved =ephall['delta']* resolved
-
     ax1.plot(ephall['datetime_jd'],ephall['delta'], c=mycol2)
-    ax1.fill_between(ephall['datetime_jd'],Dresolved, 0, lw=0, facecolor='r', alpha=0.5)
+    try:
+        ax1.fill_between(ephall['datetime_jd'],Dresolved, 0, lw=0, facecolor='r', alpha=0.5)
+    except Exception as e:
+        print(f"Error filling resolved region: {e}")
 
     ax1.tick_params('y', colors=mycol)
     ax1.set_xticks(tickyears.jd)
@@ -372,8 +381,6 @@ def plotIt(ephall, cystart,cyend, Deltamax=0, absMag=15.):
     #=PLOT 4=============== PlAng, solar phase
     ax1 = axAll[ithisplot]
     ax1.cla()
-    ax2 = ax1.twinx()
-    ax2.cla()
 
     elongNotOk = ephall['elong'] < 85.
     elongJwstOk = ( ephall['elong'] >= 85.)*( ephall['elong'] <= 135.)
@@ -402,6 +409,10 @@ def plotIt(ephall, cystart,cyend, Deltamax=0, absMag=15.):
     doXticks(ax1, tickMonthFlag, tickmonths, tickyears, limityears)
 
     mycol = mycol2
+
+    ax2 = ax1.twinx()
+    #ax2.cla()
+
     ax2.plot(ephall['datetime_jd'],ephall['alpha'], c=mycol, alpha=0.5)
     ax2.set_ylabel("Solar Phase",color=mycol)
     ax2.tick_params('y', colors=mycol)
@@ -417,7 +428,7 @@ def plotIt(ephall, cystart,cyend, Deltamax=0, absMag=15.):
         _ = ax2.set_yticks(np.arange(0,180,10),  minor=True)
         ax2.legend(loc=1, ncol=5, framealpha=0.0)
 
-        ax2.set_ylabel("Solar Elong.\n/Phase",color=mycol)
+        ax2.set_ylabel("$\odot$ Elong./Phase",color=mycol)
         ax2.set_ylim(0,215)
 
 
@@ -637,9 +648,9 @@ if __name__ == "__main__":
                             help='Max value of Delta for plot; leave to 0 for auto.')
     parser.add_argument('-H','--absMag', default=15.,
                             help='Absolute mag in case the ephem has no mag.')
-    parser.add_argument('--save', dest='saveFile', action='store_true',
+    parser.add_argument('--save', dest='saveFile', action='store_false',
                         help='Save ephem to local file')
-    parser.add_argument('--read', dest='readFile', action='store_true',
+    parser.add_argument('--read', dest='readFile', action='store_false',
                         help='read ephem from local file "outfile".ecsv')
 
     myargs = parser.parse_args()
@@ -647,9 +658,6 @@ if __name__ == "__main__":
     my_file = myargs.outFile
     my_dir = '.'
     comet = myargs.object
-
-    #ystart = 2019.
-    #yend = 2040.5
 
 
     cystart =  myargs.start
@@ -663,19 +671,22 @@ if __name__ == "__main__":
 
 
     # READ DATA
+    ephall = None
     if myargs.readFile:
-        ephall = ascii.read(myargs.outFile+'.ecsv')
-        print(f'Ephemerides in from file; {len(ephall)} lines for {ephall["targetname"][0]}')
-    else:
+        try:
+            ephall = ascii.read(myargs.outFile+'.ecsv')
+            print(f'Ephemerides in from file; {len(ephall)} lines for {ephall["targetname"][0]}')
+        except Exception as e:
+            print(f"Error reading ephemerides from file: {e}")
+    if ephall is None:
         ephall = Horizons( id=comet, location=500, epochs=epochs ).ephemerides()
         print(f'Ephemerides in from Horizon; {len(ephall)} lines for {ephall["targetname"][0]}')
         if myargs.saveFile:
             ephall.write(myargs.outFile+'.ecsv', overwrite=True)
+        ephall = ascii.read(myargs.outFile+'.ecsv')
 
-
-    print('ENTER')
+    print('>>>>>>>>hrzVisibility plot for '+ephall['targetname'][0]+' <<<<<<<<')
     plotIt(ephall, cystart,cyend, Deltamax=Deltamax, absMag=myargs.absMag)
-    print('EXIT')
     plt.savefig(my_file+".pdf")
 
     print( "V: output plot in "+my_dir+"/"+my_file+".pdf")
