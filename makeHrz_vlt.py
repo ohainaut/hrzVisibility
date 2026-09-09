@@ -93,19 +93,24 @@ print('        ...got ephem')
 
 
 
-
-print(f'Ephemerides in from Horizon; {len(ephall)} lines for {ephall["targetname"][0]}')
-
-
-
 lEph = len(ephall[  ( ephall['EL'] > 27 ) & ( ephall["solar_presence"] != "*")      ])
 if lEph == 0:
     raise ValueError(f'0 ephemeride line with elev>27 during night')
 print(f'                              {lEph} lines observable')
 
 # output
-f = open(myargs.outFile+'v.eph', 'w') 
-f.write(
+eph_file    = open(myargs.outFile+'v.eph', 'w') 
+readme_file = open(myargs.outFile+'v.txt', 'w') 
+
+
+
+readme_header = (f'Ephemerides in from Horizon; {len(ephall)} lines for {ephall["targetname"][0]}')
+print(readme_header)
+readme_file.write(readme_header+"\n\n")
+
+
+
+eph_file.write(
 f'''PAF.HDR.START;                                             # Start of PAF Header
 PAF.TYPE                  "Instrument Setup";              # Type of PAF
 PAF.ID                    "";                              # ID for PAF
@@ -144,21 +149,23 @@ jd0 =  ephall["intMJD"][0]
 
 # overall qualification of the moon, from 0 to 10k.
 # myMoon<1000 is acceptable
-ephall['myMoon'] = ((ephall["lunar_presence"] != "") * (180.-ephall["lunar_elong"])/1.8 * ephall["lunar_illum"]).astype(int)
+ephall['myMoon'] = ((ephall["lunar_presence"] != "") * (180.-ephall["lunar_elong"])/1.8 * ephall["lunar_illum"]).astype(int) 
 
 
-print(f'DateTime     \tmag \t"/h \tSg "'+
+
+readme_header = (f'DateTime     \tmag \t"/h \tSg "'+
                   '\ttMx s \tDIT s \tNDIT \texpTs \t'+
                   'Tel m \tsnr1 \tsnrT \tstep " '+
                   '\tGlxLt \tSMAA"@Th \tRA+Dec   '+
                   '\tFLI@Elon \tObs[h] [FromTo]')
-
+print(readme_header)
+readme_file.write(readme_header+"\n")
 
 
 for il in np.arange(len(ephall)):
 
     l = ephall[il]
-    if l["EL"] > 27. and l["solar_presence"] != '*': #filter high airmasses and day
+    if l["EL"] > 23. and l["solar_presence"] != '*': #filter high airmasses and day
 
         # some conversions
         t = Time(l["datetime_jd"], format='jd').isot
@@ -176,7 +183,7 @@ for il in np.arange(len(ephall)):
 
 
         # write VLT ephem
-        f.write(f'INS.EPHEM.RECORD          "{t}, {l["datetime_jd"]:17.9f}, '+
+        eph_file.write(f'INS.EPHEM.RECORD          "{t}, {l["datetime_jd"]:17.9f}, '+
                 f'{int(ra[0]):02d} {int(ra[1]):02d} {ras}, '+
                 f'{desig}{int(de[1]):02d} {int(de[2]):02d} {des},'+
                 f' {dra:+9.6f}, {dde:+9.6f}, , "\n')
@@ -217,21 +224,21 @@ for il in np.arange(len(ephall)):
             snrTot = np.sqrt(expTtot / expTs10)*10.
 
 
-            ###print(ephMyJD["datetime_str", "lunar_elong", "lunar_illum", "myMoon"])
 
-            print(f'{l0["datetime_str"][:11]} \t{mag:.1f} \t{speed:.1f} \t{seeing} '+
-                  f'\t{ditMax:.1f} \t{dit} \t{nDit} \t{expTtot} '+
-                  f'\t{telTtot:.2f} \t{snrDit:.1f} \t{snrTot:.1f} \t{step:.1f} '+
-                  f'\t{l0["GlxLat"]:.1f} \t{l0["SMAA_3sigma"]:.1f}"@{l0["Theta_3sigma"]:.1f}'+
-                  f'\t{int(ra[0]):02d}:{int(ra[1]):02d}{desig}{int(de[1]):02d} ', 
-                  end=" ")
+            outLine =  (f'{l0["datetime_str"][:11]} \t{mag:.1f} \t{speed:.1f} \t{seeing} '
+              + f'\t{ditMax:.1f} \t{dit} \t{nDit} \t{expTtot:<5.0f} '
+              + f'\t{telTtot:<6.1f} \t{snrDit:.1f} \t{snrTot:.1f} \t{step:.1f} '
+              + f'\t{l0["GlxLat"]:.1f} \t{l0["SMAA_3sigma"]:.1f}"@{l0["Theta_3sigma"]:.1f}'
+              + f'\t{int(ra[0]):02d}:{int(ra[1]):02d}{desig}{int(de[1]):02d} ')
             if len(ephMyJD) == 0:
-                print('\t-NO-')
+                outLine += '\t-NO-'
             else:
-                print(f'\t{l0["lunar_illum"]/100:.2f}@{l0["lunar_elong"]:.0f}d',
-                      f'\t{(ephMyJD["datetime_jd"][-1] - ephMyJD["datetime_jd"][0])*24.:.1f}h',
-                      f' ({ephMyJD["datetime_str"][0][9:17]}-{ephMyJD["datetime_str"][-1][12:17]})'  )
+                outLine += f'\t{l0["lunar_illum"]/100:.2f}@{l0["lunar_elong"]:.0f}d' + \
+                      f'\t{(ephMyJD["datetime_jd"][-1] - ephMyJD["datetime_jd"][0])*24.:.1f}h' + \
+                      f' ({ephMyJD["datetime_str"][0][9:17]}-{ephMyJD["datetime_str"][-1][12:17]})'  
 
+            print(outLine)
+            readme_file.write(outLine+"\n") 
 
 
         l0 = l # preserve valid line for print if needed.
@@ -243,5 +250,5 @@ for il in np.arange(len(ephall)):
 if ddcount > 0:
     print(f'step too large {myargs.step} on {ddcount} epochs, max {ddmax:.2f}"')
 
-f.write("\n")
-f.close()
+eph_file.write("\n")
+eph_file.close()

@@ -681,8 +681,7 @@ if __name__ == "__main__":
     if ephall is None:
         ephall = Horizons( id=comet, location=500, epochs=epochs ).ephemerides()
         print(f'Ephemerides in from Horizon; {len(ephall)} lines for {ephall["targetname"][0]}')
-        if myargs.saveFile:
-            ephall.write(myargs.outFile+'.ecsv', overwrite=True)
+        ephall.write(myargs.outFile+'.ecsv', overwrite=True)
         ephall = ascii.read(myargs.outFile+'.ecsv')
 
     print('>>>>>>>>hrzVisibility plot for '+ephall['targetname'][0]+' <<<<<<<<')
